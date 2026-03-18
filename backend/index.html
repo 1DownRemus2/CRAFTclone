@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRAFT — Intelligent Space Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:        #0f0e0c;
+    --ink-2:      #3a3832;
+    --ink-3:      #7a7670;
+    --paper:      #f5f2ec;
+    --paper-2:    #edeae2;
+    --paper-3:    #e3dfd5;
+    --gold:       #c9a84c;
+    --gold-light: #f0dfa0;
+    --gold-dim:   #8a6e2a;
+    --teal:       #2a7a6e;
+    --teal-light: #e0f4f1;
+    --teal-dim:   #1a4f47;
+    --rose:       #b85450;
+    --rose-light: #f5e8e7;
+    --border:     rgba(15,14,12,0.12);
+    --shadow-sm:  0 1px 3px rgba(15,14,12,0.08), 0 1px 2px rgba(15,14,12,0.06);
+    --shadow-md:  0 4px 16px rgba(15,14,12,0.10), 0 2px 6px rgba(15,14,12,0.06);
+    --shadow-lg:  0 12px 40px rgba(15,14,12,0.13), 0 4px 12px rgba(15,14,12,0.08);
+    --r:          10px;
+    --r-lg:       16px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grain overlay ────────────────────────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.6;
+  }
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  .page-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────────────── */
+  header {
+    padding: 52px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .logo-block {}
+
+  .logo-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+
+  .logo-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 6vw, 54px);
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+
+  .logo-title em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .logo-sub {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 8px;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  .header-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--teal-light);
+    color: var(--teal-dim);
+    border: 1px solid rgba(42,122,110,0.2);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── Search bar ───────────────────────────────────────────────────────── */
+  .search-section { margin-bottom: 40px; }
+
+  .search-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .search-label span {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .search-wrap {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .search-input {
+    flex: 1;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r);
+    padding: 16px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .search-input::placeholder { color: var(--ink-3); }
+
+  .search-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.12), var(--shadow-sm);
+  }
+
+  .search-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--r);
+    padding: 16px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .search-btn:hover { background: var(--ink-2); }
+  .search-btn:active { transform: scale(0.98); }
+  .search-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .search-btn svg { flex-shrink: 0; }
+
+  /* ── Chips ────────────────────────────────────────────────────────────── */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .chip {
+    background: var(--paper-2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .chip:hover {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    color: var(--gold-dim);
+  }
+
+  /* ── Loading ──────────────────────────────────────────────────────────── */
+  .loading {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    padding: 28px 0;
+    color: var(--ink-3);
+    font-size: 14px;
+  }
+
+  .loading.visible { display: flex; }
+
+  .loading-spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--paper-3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error ────────────────────────────────────────────────────────────── */
+  .error-box {
+    display: none;
+    background: var(--rose-light);
+    border: 1px solid rgba(184,84,80,0.2);
+    border-radius: var(--r);
+    padding: 16px 20px;
+    color: var(--rose);
+    font-size: 14px;
+    margin-bottom: 24px;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .error-box.visible { display: flex; }
+
+  /* ── Results ──────────────────────────────────────────────────────────── */
+  #results { opacity: 0; transition: opacity 0.4s ease; }
+  #results.visible { opacity: 1; }
+
+  /* ── Intent banner ────────────────────────────────────────────────────── */
+  .intent-banner {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: var(--r-lg);
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .intent-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .intent-text em { color: var(--gold); font-style: italic; }
+
+  .intent-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .meta-pill {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.04em;
+  }
+
+  .meta-pill.gold {
+    background: rgba(201,168,76,0.2);
+    border-color: rgba(201,168,76,0.3);
+    color: var(--gold-light);
+  }
+
+  /* ── Pipeline steps ───────────────────────────────────────────────────── */
+  .pipeline-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .pipeline-step {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .step-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .step-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .step-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .step-value.teal { color: var(--teal); }
+  .step-value.gold { color: var(--gold-dim); }
+
+  .conf-bar-wrap {
+    height: 4px;
+    background: var(--paper-3);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .conf-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--teal);
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* ── Section heading ──────────────────────────────────────────────────── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--ink);
+  }
+
+  .section-rule {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+
+  /* ── Totals bar ───────────────────────────────────────────────────────── */
+  .totals-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .total-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 14px 20px;
+    flex: 1;
+    min-width: 120px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .total-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+
+  .total-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .total-value.gold { color: var(--gold-dim); }
+  .total-value.teal { color: var(--teal); }
+
+  /* ── Device cards ─────────────────────────────────────────────────────── */
+  .devices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .device-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: slideUp 0.35s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .device-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .device-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold), var(--teal));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .device-card:hover::before { opacity: 1; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .device-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .device-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--paper-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .device-name-block { flex: 1; min-width: 0; }
+
+  .device-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .inferred-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--gold-light);
+    color: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .device-desc {
+    font-size: 12px;
+    color: var(--ink-3);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .device-metrics {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .metric {
+    flex: 1;
+    background: var(--paper-2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .metric-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    display: block;
+  }
+
+  .metric-val.gold { color: var(--gold-dim); }
+  .metric-val.teal { color: var(--teal); }
+
+  .metric-lbl {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+    display: block;
+    margin-top: 1px;
+  }
+
+  .device-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tag {
+    background: var(--paper-2);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    color: var(--ink-3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .provides-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .provide-tag {
+    background: var(--teal-light);
+    color: var(--teal-dim);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    border: 1px solid rgba(42,122,110,0.15);
+  }
+
+  /* ── History ──────────────────────────────────────────────────────────── */
+  .history-section {
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    gap: 12px;
+  }
+
+  .history-item:hover {
+    border-color: var(--gold);
+    background: var(--paper-2);
+  }
+
+  .history-query {
+    font-size: 13px;
+    color: var(--ink);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .history-meta {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .history-domain {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+  }
+
+  .history-cost {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--gold-dim);
+    background: var(--gold-light);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+    color: var(--ink-3);
+  }
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--ink-2);
+    margin-bottom: 8px;
+  }
+
+  .empty-sub { font-size: 13px; line-height: 1.6; }
+
+  /* ── Footer ───────────────────────────────────────────────────────────── */
+  footer {
+    margin-top: 80px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .footer-text {
+    font-size: 12px;
+    color: var(--ink-3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 16px;
+  }
+
+  .footer-links a {
+    font-size: 12px;
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .footer-links a:hover { color: var(--gold-dim); }
+
+  /* ── Responsive ───────────────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .page-wrap { padding: 0 16px 60px; }
+    header { flex-direction: column; align-items: flex-start; padding: 32px 0 28px; }
+    .intent-banner { flex-direction: column; align-items: flex-start; }
+    .search-wrap { flex-direction: column; }
+    .search-btn { justify-content: center; }
+    .devices-grid { grid-template-columns: 1fr; }
+    .pipeline-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-block">
+      <div class="logo-eyebrow">Intelligent Space Planner</div>
+      <h1 class="logo-title">CR<em>A</em>FT</h1>
+      <p class="logo-sub">Describe your space. Get a precise device plan.</p>
+    </div>
+    <div class="header-badge">
+      <div class="badge-pill">
+        <span class="badge-dot"></span>
+        API Connected
+      </div>
+    </div>
+  </header>
+
+  <!-- Search -->
+  <section class="search-section">
+    <label class="search-label" for="queryInput">
+      What would you like to <span>set up?</span>
+    </label>
+    <div class="search-wrap">
+      <input
+        id="queryInput"
+        class="search-input"
+        type="text"
+        placeholder="e.g. I want to build a smart home with motion sensors…"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button class="search-btn" id="planBtn" onclick="submitQuery()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1L13 7L7 13M1 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Plan
+      </button>
+    </div>
+    <div class="chips" id="exampleChips">
+      <span class="chip" onclick="useChip(this)">Setup smart home</span>
+      <span class="chip" onclick="useChip(this)">I only want motion sensors</span>
+      <span class="chip" onclick="useChip(this)">Create a complete home office</span>
+      <span class="chip" onclick="useChip(this)">I need a curved monitor</span>
+      <span class="chip" onclick="useChip(this)">Budget smart home</span>
+      <span class="chip" onclick="useChip(this)">I just need a desk</span>
+      <span class="chip" onclick="useChip(this)">Energy efficient office setup</span>
+    </div>
+  </section>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <span id="loadingText">Analysing your query…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px">
+      <circle cx="8" cy="8" r="7" stroke="#b85450" stroke-width="1.5"/>
+      <path d="M8 5V8.5M8 11H8.01" stroke="#b85450" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <span id="errorMsg"></span>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">◈</div>
+      <div class="empty-title">Ready to plan your space</div>
+      <p class="empty-sub">Type a description above or pick an example to get a<br>personalised device recommendation plan.</p>
+    </div>
+    <div id="planOutput" style="display:none"></div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section" id="historySection" style="display:none">
+    <div class="section-head">
+      <h2 class="section-title">Recent queries</h2>
+      <span class="section-rule"></span>
+      <button onclick="clearHistory()" style="font-size:11px;color:var(--ink-3);background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:0.04em;">Clear</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <span class="footer-text">CRAFT v2.0 — Semantic Intent Pipeline</span>
+    <div class="footer-links">
+      <a href="#">Docs</a>
+      <a href="#">GitHub</a>
+      <a href="#">API</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+const API = '/api/plan';
+let history = JSON.parse(localStorage.getItem('craft_history') || '[]');
+
+// Device icons map
+const ICONS = {
+  hub_zigbee:         '🔗',
+  bulb_zigbee:        '💡',
+  voice_speaker:      '🔊',
+  motion_sensor:      '👁',
+  desk:               '🪑',
+  monitor:            '🖥',
+  computer:           '💻',
+  alexa_echo:         '🔊',
+  led_strip:          '🌈',
+  homepod_mini:       '🔊',
+  philips_hue:        '💡',
+  aqara_sensor:       '📡',
+  standing_desk:      '🪑',
+  ultrawide_monitor:  '🖥',
+  laptop_workstation: '💻',
+};
+
+function getIcon(id) {
+  return ICONS[id] || '⚙️';
+}
+
+// ── Submit ─────────────────────────────────────────────────────────────────
+async function submitQuery(query) {
+  const input = document.getElementById('queryInput');
+  const q = (query || input.value).trim();
+  if (!q) { input.focus(); return; }
+
+  setLoading(true);
+  hideError();
+  document.getElementById('results').classList.remove('visible');
+
+  const steps = [
+    'Extracting constraints…',
+    'Detecting capability intent…',
+    'Identifying domain…',
+    'Checking bundle intent…',
+    'Merging goals…',
+    'Building device plan…',
+  ];
+  let si = 0;
+  const stepInterval = setInterval(() => {
+    si = (si + 1) % steps.length;
+    document.getElementById('loadingText').textContent = steps[si];
+  }, 600);
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    });
+
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const data = await res.json();
+
+    clearInterval(stepInterval);
+    setLoading(false);
+
+    if (data.error && data.devices.length === 0) {
+      showError(data.error);
+      return;
+    }
+
+    renderResults(data);
+    addToHistory(data);
+    renderHistory();
+
+    setTimeout(() => {
+      document.getElementById('results').classList.add('visible');
+    }, 50);
+
+  } catch (err) {
+    clearInterval(stepInterval);
+    setLoading(false);
+    showError('Could not reach the API. Make sure the backend is running on port 5000.');
+    console.error(err);
+  }
+}
+
+// ── Render results ─────────────────────────────────────────────────────────
+function renderResults(d) {
+  document.getElementById('emptyState').style.display = 'none';
+  const out = document.getElementById('planOutput');
+  out.style.display = 'block';
+
+  const domainLabel = d.domain === 'unknown' ? 'Unknown domain' : d.domain.replace('_', ' ');
+  const bundleLabel = d.is_bundle ? 'Bundle' : 'Targeted';
+  const confPct = Math.round(d.domain_confidence * 100);
+
+  // Capability tags for pipeline step
+  const capTags = (arr) => arr.map(c =>
+    `<span class="provide-tag">${c.replace('_', ' ')}</span>`
+  ).join('');
+
+  // Constraint pills
+  const constPills = Object.entries(d.constraints)
+    .filter(([,v]) => v)
+    .map(([k]) => `<span class="meta-pill">${k.replace('_', ' ')}</span>`)
+    .join('') || '<span style="font-size:12px;color:rgba(255,255,255,0.4);font-family:\'DM Mono\',monospace">none</span>';
+
+  // Device cards
+  const cards = d.devices.map((dev, i) => `
+    <div class="device-card" style="animation-delay:${i * 0.07}s">
+      <div class="device-header">
+        <div class="device-icon">${getIcon(dev.id)}</div>
+        <div class="device-name-block">
+          <div class="device-name">${dev.id}</div>
+          ${dev.inferred ? '<span class="inferred-badge">✦ inferred</span>' : ''}
+        </div>
+      </div>
+      <p class="device-desc">${dev.description}</p>
+      <div class="provides-list">
+        ${capTags(dev.provides)}
+      </div>
+      <div class="device-metrics">
+        <div class="metric">
+          <span class="metric-val gold">$${dev.cost}</span>
+          <span class="metric-lbl">Cost</span>
+        </div>
+        <div class="metric">
+          <span class="metric-val teal">${dev.power}W</span>
+          <span class="metric-lbl">Power</span>
+        </div>
+        ${dev.requires.length ? `
+        <div class="metric">
+          <span class="metric-val" style="font-size:10px;line-height:1.4">${dev.requires.join(', ')}</span>
+          <span class="metric-lbl">Requires</span>
+        </div>` : ''}
+      </div>
+      <div class="device-tags">
+        ${dev.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  out.innerHTML = `
+    <!-- Intent banner -->
+    <div class="intent-banner">
+      <div class="intent-text">${formatIntentText(d.intent)}</div>
+      <div class="intent-meta">
+        <span class="meta-pill gold">${domainLabel}</span>
+        <span class="meta-pill">${bundleLabel}</span>
+        ${constPills}
+      </div>
+    </div>
+
+    <!-- Pipeline steps -->
+    <div class="pipeline-row">
+      <div class="pipeline-step">
+        <div class="step-num">Step 01</div>
+        <div class="step-label">Domain</div>
+        <div class="step-value teal">${domainLabel}</div>
+        <div class="conf-bar-wrap"><div class="conf-bar" style="width:${confPct}%"></div></div>
+        <div style="font-size:10px;color:var(--ink-3);margin-top:4px;font-family:'DM Mono',monospace">${confPct}% confidence</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">Step 02</div>
+        <div class="step-label">Intent type</div>
+        <div class="step-value gold">${bundleLabel}</div>
+        <div style="font-size:10px;color:var(--ink-3);margin-top:6px;line-height:1.4">${truncate(d.bundle_reason, 60)}</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">Step 03</div>
+        <div class="step-label">Capabilities</div>
+        <div class="provides-list" style="margin-top:6px">${
+          d.goal_capabilities.length
+            ? capTags(d.goal_capabilities)
+            : '<span style="font-size:11px;color:var(--ink-3)">none detected</span>'
+        }</div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">Step 04</div>
+        <div class="step-label">Constraints</div>
+        <div class="step-value" style="margin-top:6px">${
+          Object.entries(d.constraints).filter(([,v])=>v).map(([k])=>
+            `<span class="provide-tag">${k.replace('_',' ')}</span>`
+          ).join('') || '<span style="font-size:11px;color:var(--ink-3)">none</span>'
+        }</div>
+      </div>
+    </div>
+
+    <!-- Totals -->
+    <div class="totals-bar">
+      <div class="total-card">
+        <div class="total-label">Devices</div>
+        <div class="total-value">${d.devices.length}</div>
+      </div>
+      <div class="total-card">
+        <div class="total-label">Total cost</div>
+        <div class="total-value gold">$${d.total_cost}</div>
+      </div>
+      <div class="total-card">
+        <div class="total-label">Total power</div>
+        <div class="total-value teal">${d.total_power}W</div>
+      </div>
+    </div>
+
+    <!-- Device grid -->
+    <div class="section-head">
+      <h2 class="section-title">Device plan</h2>
+      <span class="section-rule"></span>
+      <span class="section-count">${d.devices.length} device${d.devices.length !== 1 ? 's' : ''}</span>
+    </div>
+    <div class="devices-grid">${cards}</div>
+  `;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function formatIntentText(intent) {
+  return intent
+    .replace(/\b(SMART_HOME|HOME_OFFICE)\b/g, m => `<em>${m.replace('_',' ')}</em>`)
+    .replace(/\b(Full|Targeted|Standard)\b/g, m => `<em>${m}</em>`);
+}
+
+function truncate(str, n) {
+  return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('visible', on);
+  document.getElementById('planBtn').disabled = on;
+}
+
+function showError(msg) {
+  const b = document.getElementById('errorBox');
+  document.getElementById('errorMsg').textContent = msg;
+  b.classList.add('visible');
+  document.getElementById('results').classList.add('visible');
+}
+
+function hideError() {
+  document.getElementById('errorBox').classList.remove('visible');
+}
+
+function useChip(el) {
+  document.getElementById('queryInput').value = el.textContent;
+  submitQuery();
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function addToHistory(d) {
+  history.unshift({
+    query: d.query,
+    domain: d.domain,
+    total_cost: d.total_cost,
+    device_count: d.devices.length,
+    ts: Date.now(),
+  });
+  history = history.slice(0, 8);
+  localStorage.setItem('craft_history', JSON.stringify(history));
+}
+
+function renderHistory() {
+  if (!history.length) {
+    document.getElementById('historySection').style.display = 'none';
+    return;
+  }
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('historyList').innerHTML = history.map(h => `
+    <div class="history-item" onclick="document.getElementById('queryInput').value='${h.query.replace(/'/g,"\\'")}'; submitQuery()">
+      <span class="history-query">${h.query}</span>
+      <div class="history-meta">
+        <span class="history-domain">${h.domain.replace('_',' ')}</span>
+        <span class="history-cost">$${h.total_cost}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  history = [];
+  localStorage.removeItem('craft_history');
+  renderHistory();
+}
+
+// ── Keyboard shortcut ──────────────────────────────────────────────────────
+document.getElementById('queryInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuery(); }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.getElementById('results').classList.add('visible');
+renderHistory();
+
+// Check API health quietly
+fetch('/api/health')
+  .then(r => r.json())
+  .then(() => {}) // connected — badge already shows
+  .catch(() => {
+    document.querySelector('.badge-pill').style.background = 'var(--rose-light)';
+    document.querySelector('.badge-pill').style.color = 'var(--rose)';
+    document.querySelector('.badge-pill').style.borderColor = 'rgba(184,84,80,0.2)';
+    document.querySelector('.badge-dot').style.background = 'var(--rose)';
+    document.querySelector('.badge-dot').style.animation = 'none';
+    document.querySelector('.badge-pill').lastChild.textContent = ' API Offline';
+  });
+</script>
+</body>
+</html>
